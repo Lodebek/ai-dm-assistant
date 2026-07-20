@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI DM Assistant</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐉</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <!-- PDF.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+    
+    <style>
+        :root {
+            --bg-dark: #09090b; /* Deep shadow */
+            --bg-panel: rgba(15, 10, 20, 0.85); /* Dark arcane glass */
+            --accent: #d97706; /* Magical gold/amber */
+            --accent-hover: #f59e0b;
+            --text-main: #fef3c7; /* Parchment white */
+            --text-muted: #9ca3af;
+            --border: rgba(217, 119, 6, 0.3); /* Subtle gold */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #09090b url('/arcane_library_bg.png') no-repeat center center fixed;
+            background-size: cover;
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: var(--accent);
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Glassmorphism Sidebar (Left Pane) */
+        .left-pane {
+            width: 320px;
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: hidden; /* Inner elements will scroll */
+        }
+        
+        .left-pane-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .left-pane h2 { margin-top: 0; font-size: 20px; font-weight: 700; color: var(--accent); font-family: 'Cinzel', serif; letter-spacing: 1px; text-shadow: 0 0 10px rgba(217, 119, 6, 0.3); }
+        
+        .nav-item {
+            padding: 10px 15px;
+            margin: 2px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-main);
+        }
+
+        .create-campaign-btn {
+            margin: 10px 20px;
+            padding: 8px;
+            background: transparent;
+            border: 1px dashed var(--border);
+            color: var(--text-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 13px;
+        }
+        .create-campaign-btn:hover { border-color: var(--accent); color: var(--text-main); }
+
+        /* Center Pane */
+        .center-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            position: relative;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .settings-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .settings-btn:hover { background: var(--accent-hover); }
+
+        /* Drag & Drop Zone */
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .drop-zone {
+            background: var(--bg-panel);
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            backdrop-filter: blur(12px);
+        }
+        .drop-zone.dragover { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
+        .drop-zone p { margin: 10px 0 0 0; color: var(--text-muted); }
+
+        /* Input Cards */
+        .input-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .input-card input {
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
+            color: white;
+            font-family: inherit;
+        }
+        .input-card button {
+            background: rgba(217, 119, 6, 0.15);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Cinzel', serif;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+        .input-card button:hover { background: rgba(217, 119, 6, 0.3); box-shadow: 0 0 10px rgba(217, 119, 6, 0.2); }
+
+        /* Right Pane */
+        .right-pane {
+            width: 380px;
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .context-cards {
+            flex: 0 1 auto;
+            max-height: 45%;
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            overflow-y: auto;
+        }
+
+        /* Category Manager */
+        .category-manager {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .category-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.2);
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .category-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .color-picker {
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 0;
+            background: transparent;
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255,255,255,0.1);
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px; width: 16px;
+            left: 2px; bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* Modals */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: var(--bg-dark); padding: 30px; border-radius: 12px; border: 1px solid var(--border); width: 400px; }
+        .modal-content input, .modal-content select { width: 100%; padding: 12px; margin: 10px 0 20px 0; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: white; border-radius: 6px; box-sizing: border-box; }
+        .modal-content button { width: 100%; padding: 12px; background: var(--accent); border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .modal-content button.cancel { background: transparent; border: 1px solid var(--border); margin-top: 10px; }
+
+        /* PDF.js Text Layer Fix */
+        .textLayer > span {
+            color: transparent;
+            position: absolute;
+            white-space: pre;
+            cursor: text;
+            transform-origin: 0% 0%;
+        }
+        .textLayer ::selection {
+            background: rgba(59, 130, 246, 0.4);
+            color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left Pane: Library & Nav -->
+    <div class="left-pane">
+        <div class="left-pane-header">
+            <h2>AI DM Assistant</h2>
+            <button class="settings-btn" onclick="openSettings()" style="width: 100%; margin-top: 10px; font-size: 13px; padding: 6px;">⚙️ Settings</button>
+        </div>
+        
+        <div style="overflow-y: auto; flex: 1; padding: 10px 15px;" id="treeContainer">
+            <!-- Populated via JS -->
+            <div style="text-align: center; color: var(--text-muted); margin-top: 20px;">Loading library...</div>
+        </div>
+        <div style="padding: 15px;">
+            <button class="create-campaign-btn" onclick="document.getElementById('campaignModal').style.display='flex'" style="width: 100%; margin: 0;">+ New Campaign</button>
+        </div>
+    </div>
+
+    <!-- Center Pane: Active Reader -->
+    <div class="center-pane">
+        <div class="top-bar">
+            <h1 id="activeTitle" style="margin: 0; font-family: 'Cinzel', serif; font-weight: 600; color: var(--text-main); text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Global Rules Library</h1>
+        </div>
+
+        <!-- Progress Bar (Absolute positioned overlay) -->
+        <div id="progressContainer" style="display: none; position: absolute; top: 80px; left: 50%; transform: translateX(-50%); width: 400px; background: var(--bg-panel); border: 1px solid var(--accent); padding: 15px; border-radius: 8px; z-index: 50; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span id="progressText" style="font-size: 13px; color: var(--text-main);">Processing...</span>
+                <span id="progressCount" style="font-size: 13px; color: var(--accent);">0/0</span>
+            </div>
+            <div style="width: 100%; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; height: 6px;">
+                <div id="progressBar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.3s;"></div>
+            </div>
+        </div>
+        
+        <!-- Document Viewer -->
+        <div id="documentViewer" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; display: flex; justify-content: center; align-items: center; color: var(--text-muted); box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
+            <div style="text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 15px; color: var(--accent); opacity: 0.7;">📖</div>
+                <h3 style="font-family: 'Cinzel', serif; margin: 0 0 10px 0; color: var(--text-main);">Active Module Reader</h3>
+                <p style="font-size: 14px; margin: 0;">Select a document from the left library to view it here.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Pane: Context & Chat -->
+    <div class="right-pane">
+        <!-- Context Cards -->
+        <div class="context-cards">
+            <h3 style="margin: 0; color: var(--accent); font-family: 'Cinzel', serif; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                <span>👁️</span> Contextual Lookahead
+            </h3>
+            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 6px; border: 1px dashed var(--border); color: var(--text-muted); font-size: 12px; text-align: center; margin-top: 15px; line-height: 1.5;">
+                <b style="color: var(--text-main);">AI is monitoring the active module.</b><br><br>
+                Stat blocks, rules, and NPC lore will automatically pin here based on your location in the text.
+            </div>
+        </div>
+
+        <!-- Category Manager -->
+        <div class="category-manager" id="categoryManager">
+            <h3 style="margin: 0 0 20px 0; color: var(--accent); font-family: 'Cinzel', serif; font-size: 15px; display: flex; align-items: center; justify-content: space-between;">
+                <span>🎨 Annotation Layers</span>
+                <button onclick="processCurrentPdf()" style="background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: 'Cinzel', serif; font-weight: bold;">Prep Module</button>
+            </h3>
+            
+            <div id="categoryList">
+                <!-- Populated by JS -->
+            </div>
+            
+            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 6px; border: 1px dashed var(--border); color: var(--text-muted); font-size: 12px; text-align: center; margin-top: 15px; line-height: 1.5;">
+                <b style="color: var(--text-main);">The Digital Binder is Active.</b><br>
+                Toggle layers to show/hide highlights on the PDF. Change colors by clicking the color box.
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <h2 id="uploadModalTitle" style="margin-top:0">Upload / Add Link</h2>
+            <label>Target Category</label>
+            <input type="text" id="modalCategory" list="categoryOptions" placeholder="e.g. Campaign Notes">
+            
+            <div id="modalActionButtons" style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+                <button id="btnUploadFiles" onclick="document.getElementById('modalFileInput').click()">📂 Upload Files</button>
+                <input type="file" id="modalFileInput" multiple style="display: none;" accept=".pdf,.txt,.md" onchange="handleModalFiles(this.files)">
+                
+                <div id="btnAddLinkContainer" style="display: flex; gap: 10px; width: 100%;">
+                    <input type="text" id="modalLinkUrl" placeholder="https://docs.google.com/..." style="flex: 1; margin: 0; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: rgba(0,0,0,0.2); color: white;">
+                    <button id="btnAddLink" onclick="handleModalUrl()" style="width: auto; padding: 12px 20px;">Save Link</button>
+                </div>
+            </div>
+            
+            <button id="modalConfirmDropBtn" onclick="confirmDropUpload()" style="display: none; width: 100%; margin-top: 15px; background: var(--accent); color: #fff;">Confirm Upload</button>
+            <button class="cancel" onclick="document.getElementById('uploadModal').style.display='none'" style="width: 100%; margin-top: 10px;">Cancel</button>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-top:0">LLM Settings</h2>
+            <div id="settingsWarning" style="display:none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; border: 1px solid rgba(239, 68, 68, 0.3);"></div>
+            <label>Provider</label>
+            <select id="providerSelect">
+                <option value="openrouter">OpenRouter (API)</option>
+                <option value="ollama">Ollama (Local)</option>
+            </select>
+            <label>API Key</label>
+            <input type="text" id="apiKey" placeholder="sk-or-v1-..." autocomplete="off" spellcheck="false" style="-webkit-text-security: disc; font-family: monospace;">
+            <label>Model</label>
+            <input type="text" id="modelName" value="anthropic/claude-3.5-sonnet">
+            <button onclick="saveSettings()">Save Configuration</button>
+            <button class="cancel" onclick="closeSettings()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="campaignModal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-top:0">Create Campaign</h2>
+            <label>Campaign Name</label>
+            <input type="text" id="newCampName" placeholder="e.g. Reign of Winter">
+            <button onclick="createCampaign()">Create</button>
+            <button class="cancel" onclick="document.getElementById('campaignModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        let currentCampaignId = null;
+        let pollingInterval = null;
+
+        // Initialize
+        window.onload = () => {
+            loadSettings();
+            fetchLibrary();
+        };
+
+        // --- Settings ---
+        function openSettings(warningMsg = null) {
+            const warningEl = document.getElementById('settingsWarning');
+            if (warningMsg) {
+                warningEl.innerText = warningMsg;
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
+            document.getElementById('settingsModal').style.display='flex';
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsWarning').style.display = 'none';
+            document.getElementById('settingsModal').style.display='none';
+        }
+
+        function loadSettings() {
+            if(localStorage.getItem('llm_provider')) {
+                document.getElementById('providerSelect').value = localStorage.getItem('llm_provider');
+                document.getElementById('apiKey').value = localStorage.getItem('llm_api_key') || "";
+                document.getElementById('modelName').value = localStorage.getItem('llm_model') || "anthropic/claude-3.5-sonnet";
+            }
+        }
+        function saveSettings() {
+            localStorage.setItem('llm_provider', document.getElementById('providerSelect').value);
+            localStorage.setItem('llm_api_key', document.getElementById('apiKey').value);
+            localStorage.setItem('llm_model', document.getElementById('modelName').value);
+            closeSettings();
+        }
+
+        // --- Campaigns & Library Tree ---
+        async function fetchLibrary() {
+            try {
+                // Fetch campaigns and all documents concurrently
+                const [campRes, docsRes] = await Promise.all([
+                    fetch('/api/campaigns'),
+                    fetch('/api/documents/all')
+                ]);
+                const campaigns = await campRes.json();
+                const docs = await docsRes.json();
+                
+                const container = document.getElementById('treeContainer');
+                container.innerHTML = '';
+                
+                // Add Global Rules Node
+                const globalCategories = ["📚 Core Rulebooks", "🐉 Bestiaries & Monsters", "⚔️ Classes & Options", "🔮 Spells & Magic", "🗺️ Setting & Lore", "📁 Uncategorized"];
+                const globalDocs = docs.filter(d => !d.campaign_id);
+                container.appendChild(createTreeNode('Global Rules', null, globalCategories, globalDocs));
+                
+                // Add Campaign Nodes
+                const campaignCategories = ["📚 Adventure Modules", "🤫 DM Notes", "📜 Campaign Notes", "👤 Player Files", "📁 Uncategorized"];
+                campaigns.forEach(c => {
+                    const cDocs = docs.filter(d => d.campaign_id === c.id);
+                    container.appendChild(createTreeNode(c.name, c.id, campaignCategories, cDocs));
+                });
+                
+            } catch (e) {
+                console.error("Failed to fetch library tree", e);
+            }
+        }
+        
+        function createTreeNode(title, campaignId, defaultCats, docs) {
+            const node = document.createElement('details');
+            node.style.marginBottom = '10px';
+            node.open = false;
+            
+            node.innerHTML = `
+                <summary style="font-family: 'Cinzel', serif; font-weight: 600; color: var(--accent); cursor: pointer; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 5px;">
+                    ${title}
+                </summary>
+                <div class="category-container" style="padding-left: 10px;"></div>
+            `;
+            
+            const catContainer = node.querySelector('.category-container');
+            const grouped = {};
+            defaultCats.forEach(c => grouped[c] = []);
+            
+            docs.forEach(d => {
+                const cat = d.category || '📁 Uncategorized';
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(d);
+            });
+            
+            for (const [cat, items] of Object.entries(grouped)) {
+                const groupDiv = document.createElement('details');
+                groupDiv.style.marginBottom = '5px';
+                groupDiv.style.background = 'rgba(0,0,0,0.2)';
+                groupDiv.style.borderRadius = '6px';
+                groupDiv.open = false; // Closed by default
+                
+                // Drag & Drop
+                groupDiv.ondragover = (e) => { e.preventDefault(); groupDiv.style.background = 'rgba(217, 119, 6, 0.2)'; };
+                groupDiv.ondragleave = (e) => { e.preventDefault(); groupDiv.style.background = 'rgba(0,0,0,0.2)'; };
+                groupDiv.ondrop = (e) => { dropOnCategory(e, cat, groupDiv, campaignId); };
+                
+                groupDiv.innerHTML = `
+                    <summary style="font-size: 13px; color: var(--text-main); padding: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                        <div>${cat} <span style="font-weight: 400; color: var(--text-muted); font-size: 11px;">(${items.length})</span></div>
+                        <div style="display: flex; gap: 5px;">
+                            <button onclick="event.preventDefault(); event.stopPropagation(); openUploadModal('${cat}', 'file', ${campaignId})" style="padding: 2px 6px; font-size: 11px; background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: var(--text-main); cursor: pointer;">+</button>
+                        </div>
+                    </summary>
+                `;
+                
+                const ul = document.createElement('ul');
+                ul.style.listStyle = 'none';
+                ul.style.padding = '4px 10px';
+                ul.style.margin = '0';
+                ul.style.fontSize = '12px';
+                
+                if (items.length === 0) {
+                    ul.innerHTML = '<li style="color: var(--text-muted); font-size: 11px; font-style: italic;">Empty. Drag files here.</li>';
+                } else {
+                    items.forEach(d => {
+                        const icon = d.type === 'pdf' ? '📄' : d.type === 'txt' ? '📝' : '🌐';
+                        ul.innerHTML += `
+                            <li draggable="true" ondragstart="dragStart(event, ${d.id})" style="padding: 4px 0; cursor: grab; display: flex; align-items: center; gap: 8px;">
+                                <span>${icon}</span>
+                                <a href="#" class="document-link" onclick="selectDocument(this, '${d.url.replace(/'/g, "\\'").replace(/"/g, "&quot;")}', '${d.title.replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${campaignId || 'null'}); return false;" style="color: var(--text-muted); text-decoration: none; flex: 1;">${d.title}</a>
+                            </li>`;
+                    });
+                }
+                groupDiv.appendChild(ul);
+                catContainer.appendChild(groupDiv);
+            }
+            
+            return node;
+        }
+
+
+        
+        // --- Drag and Drop Categories ---
+        function dragStart(event, docId) {
+            event.dataTransfer.setData("text/plain", docId);
+        }
+
+        async function dropOnCategory(event, categoryName, el, campaignId) {
+            event.preventDefault();
+            if(el) el.style.background = 'rgba(0,0,0,0.2)';
+            
+            // If the user dropped files from their computer
+            if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+                document.getElementById('modalCategory').value = categoryName;
+                currentCampaignId = campaignId;
+                pendingFiles = event.dataTransfer.files;
+                document.getElementById('uploadModalTitle').innerText = `Uploading ${pendingFiles.length} File(s)`;
+                document.getElementById('modalActionButtons').style.display = 'none';
+                document.getElementById('modalConfirmDropBtn').style.display = 'block';
+                document.getElementById('uploadModal').style.display = 'flex';
+                return;
+            }
+
+            // Otherwise, it was an internal re-categorization drag
+            const docId = event.dataTransfer.getData("text/plain");
+            if (!docId) return;
+            
+            try {
+                await fetch(`/api/documents/${docId}/category`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ category: categoryName })
+                });
+                fetchLibrary(); 
+            } catch(e) {
+                console.error("Failed to update category", e);
+            }
+        }
+
+        // --- Polling Logic ---
+        function startPolling() {
+            if(pollingInterval) return;
+            document.getElementById('progressContainer').style.display = 'block';
+            
+            pollingInterval = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/ingest/status');
+                    const state = await res.json();
+                    
+                    if (state.is_active) {
+                        const pct = state.total_files > 0 ? Math.round((state.processed_files / state.total_files) * 100) : 0;
+                        document.getElementById('progressBar').style.width = pct + '%';
+                        document.getElementById('progressCount').innerText = `${state.processed_files} / ${state.total_files}`;
+                        document.getElementById('progressText').innerText = state.message + (state.current_file ? ` (${state.current_file})` : '');
+                    } else {
+                        // Finished
+                        document.getElementById('progressBar').style.width = '100%';
+                        document.getElementById('progressText').innerText = state.message;
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                        fetchLibrary();
+                        setTimeout(() => { document.getElementById('progressContainer').style.display = 'none'; }, 5000);
+                    }
+                } catch(e) {}
+            }, 1000); // Poll every second
+        }
+
+        // --- Unified Upload Logic ---
+        let pendingFiles = null;
+
+        function openUploadModal(category = '', forcedType = 'both', campaignId = null) {
+            currentCampaignId = campaignId;
+            document.getElementById('modalCategory').value = category;
+            pendingFiles = null;
+            document.getElementById('uploadModalTitle').innerText = "Upload / Add Link";
+            document.getElementById('modalActionButtons').style.display = 'flex';
+            document.getElementById('modalConfirmDropBtn').style.display = 'none';
+            
+            if (forcedType === 'file') {
+                document.getElementById('btnUploadFiles').style.display = 'block';
+                document.getElementById('btnAddLinkContainer').style.display = 'none';
+            } else if (forcedType === 'link') {
+                document.getElementById('btnUploadFiles').style.display = 'none';
+                document.getElementById('btnAddLinkContainer').style.display = 'flex';
+            } else {
+                document.getElementById('btnUploadFiles').style.display = 'block';
+                document.getElementById('btnAddLinkContainer').style.display = 'flex';
+            }
+            
+            document.getElementById('uploadModal').style.display = 'flex';
+        }
+
+        function handleModalFiles(files) {
+            if(!files || files.length === 0) return;
+            const category = document.getElementById('modalCategory').value || '📁 Uncategorized';
+            document.getElementById('uploadModal').style.display = 'none';
+            handleFilesCore(files, category);
+        }
+
+        async function handleModalUrl() {
+            const urlInput = document.getElementById('modalLinkUrl');
+            const url = urlInput.value;
+            if(!url) return;
+            const category = document.getElementById('modalCategory').value || '📁 Uncategorized';
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('progressContainer').style.display = 'block';
+            
+            urlInput.value = ''; // reset
+            await fetch('/api/ingest/url', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ url: url, campaign_id: currentCampaignId, category: category })
+            });
+            startPolling();
+        }
+
+        function confirmDropUpload() {
+            if(!pendingFiles) return;
+            const category = document.getElementById('modalCategory').value || '📁 Uncategorized';
+            document.getElementById('uploadModal').style.display = 'none';
+            handleFilesCore(pendingFiles, category);
+        }
+
+        async function handleFilesCore(files, category) {
+            if(!files || files.length === 0) return;
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('progressBar').style.width = '0%';
+            
+            for(let file of files) {
+                let formData = new FormData();
+                formData.append('file', file);
+                formData.append('category', category);
+                if(currentCampaignId) formData.append('campaign_id', currentCampaignId);
+                
+                await fetch('/api/ingest/file', {
+                    method: 'POST',
+                    body: formData
+                });
+            }
+            startPolling();
+        }
+
+        // --- Document Viewer (PDF.js) ---
+        let currentPdf = null;
+        let currentPdfPage = 1;
+
+        function selectDocument(el, url, title, campaignId) {
+            document.querySelectorAll('.document-link').forEach(a => {
+                a.style.color = 'var(--text-muted)';
+                a.style.fontWeight = 'normal';
+            });
+            if (el) {
+                el.style.color = 'var(--accent)';
+                el.style.fontWeight = 'bold';
+            }
+            currentCampaignId = campaignId;
+            document.getElementById('activeTitle').innerText = title;
+            openDocument(url, title);
+        }
+
+        async function openDocument(url, title) {
+            const viewer = document.getElementById('documentViewer');
+            viewer.innerHTML = '';
+            viewer.style.background = '#e5e7eb'; // Light gray background for documents
+            viewer.style.boxShadow = 'none';
+            viewer.style.padding = '0';
+            viewer.style.overflowY = 'auto'; // allow scrolling
+            
+            if (url.toLowerCase().endsWith('.pdf')) {
+                viewer.innerHTML = `
+                    <div id="pdfContainer" style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; padding: 40px 0;">
+                        
+                        <div id="pdfOutlinePanel" style="display: none; position: absolute; left: 0; top: 0; bottom: 0; width: 280px; background: var(--bg-panel); box-shadow: 2px 0 10px rgba(0,0,0,0.5); z-index: 101; overflow-y: auto; padding: 20px; text-align: left; border-right: 1px solid var(--border);">
+                            <h3 style="color: var(--accent); font-family: 'Cinzel', serif; margin-top: 0; display: flex; justify-content: space-between; align-items: center;">
+                                Table of Contents
+                                <button onclick="togglePdfOutline()" style="background:transparent; border:none; color:white; cursor:pointer; font-size: 16px;">✖</button>
+                            </h3>
+                            <ul id="pdfOutlineList" style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: var(--text-main);"></ul>
+                        </div>
+
+                        <div id="pdfControls" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--bg-panel); padding: 12px 25px; border-radius: 30px; border: 1px solid var(--border); display: flex; gap: 20px; z-index: 102; box-shadow: 0 10px 25px rgba(0,0,0,0.8); backdrop-filter: blur(10px); align-items: center;">
+                            <button onclick="togglePdfOutline()" style="background: transparent; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">📑 Chapters</button>
+                            <div style="width: 1px; height: 20px; background: var(--border);"></div>
+                            <button onclick="changePdfPage(-1, 'bottom')" style="background: transparent; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">◀ Prev</button>
+                            <span id="pdfPageNum" style="color: var(--text-main); font-weight: 600; font-family: 'Cinzel', serif;">Page 1</span>
+                            <button onclick="changePdfPage(1, 'top')" style="background: transparent; border: none; color: var(--accent); cursor: pointer; font-weight: 600;">Next ▶</button>
+                        </div>
+                        <div id="pdfPageContainer" style="position: relative; box-shadow: 0 4px 25px rgba(0,0,0,0.3); background: white;">
+                            <canvas id="pdfCanvas"></canvas>
+                            <div id="textLayer" class="textLayer" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; opacity: 1.0;"></div>
+                            <canvas id="drawCanvas" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 50; cursor: crosshair;"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Context Menu -->
+                    <div id="customContextMenu" style="display: none; position: fixed; background: var(--bg-panel); color: white; padding: 5px 0; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 8px 20px rgba(0,0,0,0.8); z-index: 1000; border: 1px solid var(--border); backdrop-filter: blur(10px);">
+                    </div>
+                `;
+                
+                try {
+                    currentPdf = await pdfjsLib.getDocument(url).promise;
+                    currentPdfPage = 1;
+                    renderPdfPage(currentPdfPage);
+                    loadPdfOutline();
+                } catch (e) {
+                    console.error("Error loading PDF", e);
+                    viewer.innerHTML = `<div style="color: red; padding: 20px;">Failed to load PDF. ${e.message}</div>`;
+                }
+                
+                // Add highlight listener
+                viewer.addEventListener('mouseup', handleTextHighlight);
+                
+                // Add right-click listener
+                viewer.addEventListener('contextmenu', handleRightClick);
+                
+                // Hide menu on click outside
+                viewer.addEventListener('mousedown', (e) => {
+                    const menu = document.getElementById('customContextMenu');
+                    if(menu && !e.target.closest('#customContextMenu')) {
+                        menu.style.display = 'none';
+                    }
+                });
+                
+                // Continuous page scrolling
+                let scrollCooldown = false;
+                viewer.addEventListener('wheel', (e) => {
+                    if (scrollCooldown || !currentPdf) return;
+                    
+                    const isAtBottom = viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 2;
+                    const isAtTop = viewer.scrollTop <= 2;
+                    
+                    if (e.deltaY > 0 && isAtBottom) {
+                        if (currentPdfPage < currentPdf.numPages) {
+                            e.preventDefault();
+                            scrollCooldown = true;
+                            changePdfPage(1, 'top');
+                            setTimeout(() => { scrollCooldown = false; }, 400);
+                        }
+                    } else if (e.deltaY < 0 && isAtTop) {
+                        if (currentPdfPage > 1) {
+                            e.preventDefault();
+                            scrollCooldown = true;
+                            changePdfPage(-1, 'bottom');
+                            setTimeout(() => { scrollCooldown = false; }, 400);
+                        }
+                    }
+                });
+                
+            } else {
+                const iframe = document.createElement('iframe');
+                iframe.src = url;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                iframe.style.borderRadius = '8px';
+                viewer.appendChild(iframe);
+            }
+        }
+
+        async function renderPdfPage(num) {
+            if (!currentPdf) return;
+            const page = await currentPdf.getPage(num);
+            const scale = 1.3; // Default zoom
+            const viewport = page.getViewport({scale: scale});
+            
+            const canvas = document.getElementById('pdfCanvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+            
+            // Setup Text Layer for selecting/highlighting
+            const textLayerDiv = document.getElementById('textLayer');
+            textLayerDiv.innerHTML = '';
+            textLayerDiv.style.width = `${viewport.width}px`;
+            textLayerDiv.style.height = `${viewport.height}px`;
+
+            const drawCanvas = document.getElementById('drawCanvas');
+            if (drawCanvas) {
+                drawCanvas.width = viewport.width;
+                drawCanvas.height = viewport.height;
+                setupDrawingCanvas(drawCanvas);
+            }
+
+            const textContent = await page.getTextContent();
+            
+            pdfjsLib.renderTextLayer({
+                textContent: textContent,
+                container: textLayerDiv,
+                viewport: viewport,
+                textDivs: []
+            });
+
+            // Simulate loading highlights if the page is "prepped"
+            setTimeout(() => {
+                applyHighlightsToTextLayer(num);
+            }, 500);
+
+            document.getElementById('pdfPageNum').innerText = `Page ${num} of ${currentPdf.numPages}`;
+            if (typeof drawPartyLocation === "function") drawPartyLocation();
+        }
+
+        // --- Category Manager Logic ---
+        const defaultCategories = [
+            { id: 'staging', name: 'Read-Aloud / Staging', color: '#10b981', active: true },
+            { id: 'npcs', name: 'NPCs & Monsters', color: '#ef4444', active: true },
+            { id: 'mechanics', name: 'Mechanics & DCs', color: '#f59e0b', active: true },
+            { id: 'hazards', name: 'Hazards & Traps', color: '#f97316', active: true },
+            { id: 'lore', name: 'Lore & Secrets', color: '#3b82f6', active: true },
+            { id: 'loot', name: 'Loot & Rewards', color: '#8b5cf6', active: true },
+            { id: 'structure', name: 'DM Structure & Plot', color: '#ec4899', active: true }
+        ];
+
+        function renderCategoryManager() {
+            const list = document.getElementById('categoryList');
+            if (!list) return;
+            list.innerHTML = '';
+            
+            defaultCategories.forEach(cat => {
+                const row = document.createElement('div');
+                row.className = 'category-row';
+                row.innerHTML = `
+                    <div class="category-label">
+                        <input type="color" class="color-picker" value="${cat.color}" onchange="updateCategoryColor('${cat.id}', this.value)">
+                        <span style="color: white;">${cat.name}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" ${cat.active ? 'checked' : ''} onchange="toggleCategory('${cat.id}', this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function updateCategoryColor(id, color) {
+            const cat = defaultCategories.find(c => c.id === id);
+            if (cat) cat.color = color;
+            applyHighlightsToTextLayer(currentPdfPage); // Refresh
+        }
+
+        function toggleCategory(id, active) {
+            const cat = defaultCategories.find(c => c.id === id);
+            if (cat) cat.active = active;
+            applyHighlightsToTextLayer(currentPdfPage); // Refresh
+        }
+
+        async function processCurrentPdf() {
+            if (!currentPdf) return;
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('progressBar').style.width = '10%';
+            document.getElementById('progressText').innerText = "Extracting text from PDF...";
+            document.getElementById('progressCount').innerText = "Page " + currentPdfPage + " / " + currentPdf.numPages;
+            
+            try {
+                // Get page text
+                const page = await currentPdf.getPage(currentPdfPage);
+                const textContent = await page.getTextContent();
+                const text = textContent.items.map(item => item.str).join(' ');
+                
+                document.getElementById('progressBar').style.width = '30%';
+                document.getElementById('progressText').innerText = "Sending to Local AI Engine (Mistral)...";
+                
+                // Call extraction endpoint
+                const res = await fetch('/api/extract', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        text: text,
+                        provider: document.getElementById('providerSelect').value || 'ollama',
+                        api_key: document.getElementById('apiKey').value || '',
+                        model: document.getElementById('modelName').value || 'mistral:instruct'
+                    })
+                });
+                
+                if (!res.ok) throw new Error("AI Extraction failed");
+                const data = await res.json();
+                
+                document.getElementById('progressBar').style.width = '100%';
+                document.getElementById('progressText').innerText = "Extraction Complete! Rendering...";
+                
+                // Map API data to our format
+                if (data.highlights) {
+                    const mapped = data.highlights.map(h => ({
+                        text: h.exact_text_quote,
+                        catId: h.catId
+                    }));
+                    window.currentAiHighlights = mapped;
+                }
+                
+                setTimeout(() => { 
+                    document.getElementById('progressContainer').style.display = 'none'; 
+                    applyHighlightsToTextLayer(currentPdfPage);
+                }, 1500);
+                
+            } catch (e) {
+                console.error(e);
+                document.getElementById('progressText').innerText = "Error: " + e.message;
+                setTimeout(() => { document.getElementById('progressContainer').style.display = 'none'; }, 3000);
+            }
+            function applyHighlightsToTextLayer(pageNum) {
+            // Remove existing highlight divs
+            document.querySelectorAll('.custom-highlight').forEach(el => el.remove());
+            
+            const textLayer = document.getElementById('textLayer');
+            if (!textLayer) return;
+
+            // 1. Render manual visual bounding boxes
+            (window.manualHighlights || []).forEach(h => {
+                // Ensure it's for this page
+                if (h.rect && h.rect.page === pageNum) {
+                    const category = defaultCategories.find(c => c.id === h.catId);
+                    if (category && category.active) {
+                        const highlight = document.createElement('div');
+                        highlight.className = 'custom-highlight';
+                        highlight.style.position = 'absolute';
+                        highlight.style.left = h.rect.left + 'px';
+                        highlight.style.top = h.rect.top + 'px';
+                        highlight.style.width = h.rect.width + 'px';
+                        highlight.style.height = h.rect.height + 'px';
+                        highlight.style.backgroundColor = category.color + '66'; // 40% opacity
+                        highlight.style.borderBottom = '2px solid ' + category.color;
+                        highlight.style.pointerEvents = 'none'; 
+                        highlight.style.zIndex = '10';
+                        textLayer.appendChild(highlight);
+                    }
+                }
+            });
+
+            // 2. Render any remaining AI text-matching highlights
+            const aiHighlights = window.currentAiHighlights || [];
+            if (aiHighlights.length > 0) {
+                const spans = textLayer.querySelectorAll('span');
+                spans.forEach(span => {
+                    const text = span.innerText;
+                    aiHighlights.forEach(h => {
+                        const category = defaultCategories.find(c => c.id === h.catId);
+                        const spanText = text.trim();
+                        const highlightText = (h.text || "").trim();
+                        
+                        let isMatch = false;
+                        if (spanText.length > 4 && highlightText.length > 4) {
+                            const cleanSpan = spanText.toLowerCase();
+                            const cleanQuote = highlightText.toLowerCase();
+                            if (cleanQuote.includes(cleanSpan) || cleanSpan.includes(cleanQuote)) {
+                                isMatch = true;
+                            }
+                        } else if (spanText === highlightText) {
+                            isMatch = true;
+                        }
+
+                        if (category && category.active && isMatch) {
+                            const rect = span.getBoundingClientRect();
+                            const layerRect = textLayer.getBoundingClientRect();
+                            
+                            const highlight = document.createElement('div');
+                            highlight.className = 'custom-highlight';
+                            highlight.style.position = 'absolute';
+                            highlight.style.left = (rect.left - layerRect.left) + 'px';
+                            highlight.style.top = (rect.top - layerRect.top) + 'px';
+                            highlight.style.width = rect.width + 'px';
+                            highlight.style.height = rect.height + 'px';
+                            highlight.style.backgroundColor = category.color + '66'; 
+                            highlight.style.borderBottom = '2px solid ' + category.color;
+                            highlight.style.pointerEvents = 'none';
+                            highlight.style.zIndex = '10';
+                            textLayer.appendChild(highlight);
+                        }
+                    });
+                });
+            }
+        }
+
+        // --- Manual Overrides (The User's Request) ---
+        window.manualHighlights = [];
+        let currentDrawRect = null;
+        
+        function setupDrawingCanvas(canvas) {
+            const ctx = canvas.getContext('2d');
+            let isDrawing = false;
+            let startX = 0;
+            let startY = 0;
+
+            // Clear old listeners by replacing canvas
+            const newCanvas = canvas.cloneNode(true);
+            canvas.parentNode.replaceChild(newCanvas, canvas);
+            const newCtx = newCanvas.getContext('2d');
+
+            newCanvas.addEventListener('mousedown', (e) => {
+                // Ignore right clicks
+                if (e.button !== 0) return; 
+                isDrawing = true;
+                const rect = newCanvas.getBoundingClientRect();
+                startX = e.clientX - rect.left;
+                startY = e.clientY - rect.top;
+                
+                // Hide context menu if open
+                document.getElementById('customContextMenu').style.display = 'none';
+            });
+
+            newCanvas.addEventListener('mousemove', (e) => {
+                if (!isDrawing) return;
+                const rect = newCanvas.getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+
+                newCtx.clearRect(0, 0, newCanvas.width, newCanvas.height);
+                newCtx.fillStyle = 'rgba(255, 255, 0, 0.3)'; // Translucent yellow highlight
+                newCtx.fillRect(startX, startY, currentX - startX, currentY - startY);
+            });
+
+            newCanvas.addEventListener('mouseup', (e) => {
+                if (!isDrawing) return;
+                isDrawing = false;
+                const rect = newCanvas.getBoundingClientRect();
+                const endX = e.clientX - rect.left;
+                const endY = e.clientY - rect.top;
+
+                const width = Math.abs(endX - startX);
+                const height = Math.abs(endY - startY);
+                
+                if (width > 10 && height > 10) {
+                    currentDrawRect = {
+                        left: Math.min(startX, endX),
+                        top: Math.min(startY, endY),
+                        width: width,
+                        height: height,
+                        page: currentPdfPage
+                    };
+                    showCategoryMenu(e.clientX, e.clientY, newCtx, newCanvas);
+                } else {
+                    newCtx.clearRect(0, 0, newCanvas.width, newCanvas.height);
+                }
+            });
+        }
+
+        function showCategoryMenu(clientX, clientY, ctx, canvas) {
+            const menu = document.getElementById('customContextMenu');
+            menu.innerHTML = '<div style="padding: 5px 15px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 11px;">Assign Category:</div>';
+            
+            // AI Stat Block Lookup Button
+            const aiBtn = document.createElement('div');
+            aiBtn.style.padding = '8px 20px';
+            aiBtn.style.cursor = 'pointer';
+            aiBtn.style.display = 'flex';
+            aiBtn.style.alignItems = 'center';
+            aiBtn.style.gap = '10px';
+            aiBtn.style.color = '#38bdf8';
+            aiBtn.style.fontWeight = 'bold';
+            aiBtn.innerHTML = `🔍 Get Stat Block (AI)`;
+            
+            aiBtn.onmouseover = () => aiBtn.style.background = 'rgba(255,255,255,0.1)';
+            aiBtn.onmouseout = () => aiBtn.style.background = 'transparent';
+            
+            aiBtn.onclick = async () => {
+                menu.style.display = 'none';
+                if (!currentDrawRect) return;
+                
+                // Extract text bounded by the rectangle
+                const textLayer = document.getElementById('textLayer');
+                let selectedText = "";
+                if (textLayer) {
+                    const spans = textLayer.querySelectorAll('span');
+                    spans.forEach(span => {
+                        const spanRect = span.getBoundingClientRect();
+                        const layerRect = textLayer.getBoundingClientRect();
+                        const sL = spanRect.left - layerRect.left;
+                        const sT = spanRect.top - layerRect.top;
+                        const sR = sL + spanRect.width;
+                        const sB = sT + spanRect.height;
+                        
+                        const dL = currentDrawRect.left;
+                        const dT = currentDrawRect.top;
+                        const dR = dL + currentDrawRect.width;
+                        const dB = dT + currentDrawRect.height;
+                        
+                        // Check intersection
+                        if (sL < dR && sR > dL && sT < dB && sB > dT) {
+                            selectedText += span.innerText + " ";
+                        }
+                    });
+                }
+                
+                selectedText = selectedText.trim();
+                if (!selectedText) selectedText = "Unknown Entity";
+                
+                // Create floating tooltip
+                const tooltip = document.createElement('div');
+                tooltip.style.position = 'fixed';
+                tooltip.style.left = (clientX + 20) + 'px';
+                tooltip.style.top = clientY + 'px';
+                tooltip.style.width = '300px';
+                tooltip.style.background = 'rgba(15, 23, 42, 0.95)';
+                tooltip.style.backdropFilter = 'blur(10px)';
+                tooltip.style.border = '1px solid var(--border)';
+                tooltip.style.borderRadius = '8px';
+                tooltip.style.padding = '15px';
+                tooltip.style.color = 'var(--text-main)';
+                tooltip.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+                tooltip.style.zIndex = '2000';
+                tooltip.innerHTML = `<div style="color:var(--text-muted); font-size:12px; margin-bottom:10px;">Querying AI for: <b>${selectedText}</b>...</div><div class="loader" style="width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite;"></div>`;
+                
+                // Add close button
+                const closeBtn = document.createElement('div');
+                closeBtn.innerHTML = '×';
+                closeBtn.style.position = 'absolute';
+                closeBtn.style.top = '5px';
+                closeBtn.style.right = '10px';
+                closeBtn.style.cursor = 'pointer';
+                closeBtn.style.fontSize = '20px';
+                closeBtn.onclick = () => tooltip.remove();
+                tooltip.appendChild(closeBtn);
+                
+                document.body.appendChild(tooltip);
+                
+                // Fetch AI Stats
+                try {
+                    const res = await fetch('/api/lookup', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ query: selectedText })
+                    });
+                    const data = await res.json();
+                    
+                    tooltip.innerHTML = `<div style="font-weight:bold; color:var(--accent); margin-bottom:10px; border-bottom:1px solid var(--border); padding-bottom:5px;">AI Stat Block</div><div style="font-size:13px; line-height:1.4; max-height: 400px; overflow-y: auto;">${data.result.replace(/\\n/g, '<br>')}</div>`;
+                    tooltip.appendChild(closeBtn);
+                } catch (e) {
+                    tooltip.innerHTML = `<div style="color:red;">Error fetching stats.</div>`;
+                    tooltip.appendChild(closeBtn);
+                }
+                
+                // Clear drawing canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            };
+            menu.appendChild(aiBtn);
+
+            defaultCategories.forEach(cat => {
+                const btn = document.createElement('div');
+                btn.style.padding = '8px 20px';
+                btn.style.cursor = 'pointer';
+                btn.style.display = 'flex';
+                btn.style.alignItems = 'center';
+                btn.style.gap = '10px';
+                btn.innerHTML = `<div style="width: 12px; height: 12px; border-radius: 50%; background: ${cat.color};"></div> ${cat.name}`;
+                
+                btn.onmouseover = () => btn.style.background = 'rgba(255,255,255,0.1)';
+                btn.onmouseout = () => btn.style.background = 'transparent';
+                
+                btn.onclick = () => {
+                    if (currentDrawRect) {
+                        window.manualHighlights.push({
+                            rect: currentDrawRect,
+                            catId: cat.id
+                        });
+                        
+                        // Clear the temporary drawing canvas
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        
+                        // Redraw permanent highlights
+                        applyHighlightsToTextLayer(currentPdfPage);
+                    }
+                    menu.style.display = 'none';
+                };
+                menu.appendChild(btn);
+            });
+            
+            menu.style.left = clientX + 'px';
+            menu.style.top = clientY + 'px';
+            menu.style.display = 'block';
+        }
+
+        // We no longer use text selection for overrides.
+        function handleTextHighlight(e) { }
+
+        function handleRightClick(e) {
+            e.preventDefault();
+        }
+
+        // Initialize UI
+        setTimeout(() => { renderCategoryManager(); }, 500);
+
+        async function loadPdfOutline() {
+            if (!currentPdf) return;
+            try {
+                const outline = await currentPdf.getOutline();
+                const list = document.getElementById('pdfOutlineList');
+                if (!list) return;
+                list.innerHTML = '';
+                
+                if (!outline || outline.length === 0) {
+                    list.innerHTML = '<li style="color: var(--text-muted); font-style: italic;">No chapters found in this document.</li>';
+                    return;
+                }
+                
+                const buildTree = (items, parentEl) => {
+                    items.forEach(item => {
+                        const li = document.createElement('li');
+                        li.style.padding = '4px 0';
+                        
+                        const a = document.createElement('a');
+                        a.innerText = item.title;
+                        a.href = '#';
+                        a.style.color = 'var(--text-main)';
+                        a.style.textDecoration = 'none';
+                        a.onmouseover = () => { a.style.color = 'var(--accent)'; };
+                        a.onmouseout = () => { a.style.color = 'var(--text-main)'; };
+                        a.onclick = async (e) => {
+                            e.preventDefault();
+                            if (item.dest) {
+                                let destArray = item.dest;
+                                if (typeof destArray === 'string') {
+                                    destArray = await currentPdf.getDestination(destArray);
+                                }
+                                if (destArray && destArray.length > 0) {
+                                    const pageIndex = await currentPdf.getPageIndex(destArray[0]);
+                                    if (pageIndex !== null && pageIndex >= 0) {
+                                        currentPdfPage = pageIndex + 1;
+                                        renderPdfPage(currentPdfPage);
+                                        document.getElementById('documentViewer').scrollTop = 0;
+                                    }
+                                }
+                            }
+                        };
+                        
+                        a.oncontextmenu = async (e) => {
+                            e.preventDefault();
+                            if (item.dest) {
+                                let destArray = item.dest;
+                                if (typeof destArray === 'string') {
+                                    destArray = await currentPdf.getDestination(destArray);
+                                }
+                                if (destArray && destArray.length > 0) {
+                                    const pageIndex = await currentPdf.getPageIndex(destArray[0]);
+                                    if (pageIndex !== null && pageIndex >= 0) {
+                                        const pageNum = pageIndex + 1;
+                                        
+                                        const menu = document.getElementById('customContextMenu');
+                                        menu.innerHTML = '';
+                                        
+                                        const partyBtn = document.createElement('div');
+                                        partyBtn.innerText = '📍 Set Party Location Here';
+                                        partyBtn.style.padding = '10px 20px';
+                                        partyBtn.style.cursor = 'pointer';
+                                        partyBtn.onmouseover = () => partyBtn.style.color = 'var(--accent)';
+                                        partyBtn.onmouseout = () => partyBtn.style.color = 'white';
+                                        partyBtn.onclick = () => {
+                                            menu.style.display = 'none';
+                                            
+                                            // Visual marker on TOC
+                                            document.querySelectorAll('#pdfOutlineList a').forEach(el => {
+                                                el.style.fontWeight = 'normal';
+                                                el.innerText = el.innerText.replace('📍 ', '');
+                                            });
+                                            a.style.fontWeight = 'bold';
+                                            a.innerText = '📍 ' + item.title;
+                                            
+                                            // Set Party Location
+                                            partyLocation = { page: pageNum, x: 150, y: 150 };
+                                            currentPdfPage = pageNum;
+                                            renderPdfPage(currentPdfPage);
+                                            document.getElementById('documentViewer').scrollTop = 0;
+                                            
+                                            // Trigger Lookahead
+                                            triggerLookahead(pageNum);
+                                        };
+                                        menu.appendChild(partyBtn);
+                                        
+                                        menu.style.display = 'block';
+                                        menu.style.left = `${e.clientX}px`;
+                                        menu.style.top = `${e.clientY}px`;
+                                    }
+                                }
+                            }
+                        };
+                        
+                        li.appendChild(a);
+                        
+                        if (item.items && item.items.length > 0) {
+                            const ul = document.createElement('ul');
+                            ul.style.listStyle = 'none';
+                            ul.style.paddingLeft = '15px';
+                            ul.style.marginTop = '4px';
+                            ul.style.borderLeft = '1px solid rgba(255,255,255,0.1)';
+                            buildTree(item.items, ul);
+                            li.appendChild(ul);
+                        }
+                        parentEl.appendChild(li);
+                    });
+                };
+                
+                buildTree(outline, list);
+            } catch(e) {
+                console.error("Failed to load outline", e);
+            }
+        }
+
+        function togglePdfOutline() {
+            const panel = document.getElementById('pdfOutlinePanel');
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function changePdfPage(delta, scrollPos = 'top') {
+            if (!currentPdf) return;
+            const newPage = currentPdfPage + delta;
+            if (newPage >= 1 && newPage <= currentPdf.numPages) {
+                currentPdfPage = newPage;
+                renderPdfPage(currentPdfPage).then(() => {
+                    const viewer = document.getElementById('documentViewer');
+                    if (scrollPos === 'bottom') {
+                        viewer.scrollTop = viewer.scrollHeight;
+                    } else {
+                        viewer.scrollTop = 0;
+                    }
+                });
+            }
+        }
+
+        // --- Custom Context Menu & Party Location ---
+        let partyLocation = { page: null, x: 0, y: 0 };
+
+        function handleRightClick(e) {
+            e.preventDefault();
+            const selection = window.getSelection();
+            const text = selection.toString().trim();
+            const menu = document.getElementById('customContextMenu');
+            menu.innerHTML = '';
+            
+            // Ask Oracle Option
+            if (text.length > 0) {
+                const askBtn = document.createElement('div');
+                askBtn.innerText = '✨ Ask Oracle';
+                askBtn.style.padding = '10px 20px';
+                askBtn.style.cursor = 'pointer';
+                askBtn.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                askBtn.onmouseover = () => askBtn.style.color = 'var(--accent)';
+                askBtn.onmouseout = () => askBtn.style.color = 'white';
+                askBtn.onclick = () => {
+                    menu.style.display = 'none';
+                    const searchBox = document.getElementById('searchBox');
+                    searchBox.value = `Tell me about: "${text}"`;
+                    askQuestion();
+                };
+                menu.appendChild(askBtn);
+            }
+            
+            // Party is Here Option
+            const pageContainer = document.getElementById('pdfPageContainer');
+            if (pageContainer && pageContainer.contains(e.target)) {
+                const rect = pageContainer.getBoundingClientRect();
+                const relX = e.clientX - rect.left;
+                const relY = e.clientY - rect.top;
+                const pageNum = currentPdfPage;
+                
+                const partyBtn = document.createElement('div');
+                partyBtn.innerText = '📍 Party is Here';
+                partyBtn.style.padding = '10px 20px';
+                partyBtn.style.cursor = 'pointer';
+                partyBtn.onmouseover = () => partyBtn.style.color = 'var(--accent)';
+                partyBtn.onmouseout = () => partyBtn.style.color = 'white';
+                partyBtn.onclick = () => {
+                    menu.style.display = 'none';
+                    partyLocation = { page: pageNum, x: relX, y: relY };
+                    drawPartyLocation();
+                    triggerLookahead(pageNum);
+                };
+                menu.appendChild(partyBtn);
+            }
+            
+            if (menu.children.length > 0) {
+                menu.style.display = 'block';
+                menu.style.left = `${e.clientX}px`;
+                menu.style.top = `${e.clientY}px`;
+            }
+        }
+
+        function drawPartyLocation() {
+            const existing = document.getElementById('partyMarker');
+            if (existing) existing.remove();
+            
+            if (partyLocation.page === currentPdfPage) {
+                const marker = document.createElement('div');
+                marker.id = 'partyMarker';
+                marker.innerHTML = '📍';
+                marker.style.position = 'absolute';
+                marker.style.left = `${partyLocation.x - 12}px`; // center pin
+                marker.style.top = `${partyLocation.y - 24}px`; // bottom of pin at cursor
+                marker.style.fontSize = '24px';
+                marker.style.pointerEvents = 'none';
+                marker.style.zIndex = '50';
+                marker.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))';
+                
+                // Add a bouncing animation via a style block if not already present
+                if (!document.getElementById('bounceAnim')) {
+                    const style = document.createElement('style');
+                    style.id = 'bounceAnim';
+                    style.innerHTML = `@keyframes bouncePin { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }`;
+                    document.head.appendChild(style);
+                }
+                marker.style.animation = 'bouncePin 1.5s infinite';
+                
+                document.getElementById('pdfPageContainer').appendChild(marker);
+            }
+        }
+
+        function handleTextHighlight(e) {
+            setTimeout(() => {
+                const selection = window.getSelection();
+                const text = selection.toString().trim();
+                const menu = document.getElementById('customContextMenu');
+                
+                if (text.length > 0 && menu && !e.target.closest('#customContextMenu')) {
+                    handleRightClick(e); // reuse the same menu generator
+                    const rect = selection.getRangeAt(0).getBoundingClientRect();
+                    menu.style.top = `${rect.top - 50}px`;
+                    menu.style.left = `${rect.left + (rect.width / 2) - 50}px`;
+                }
+            }, 50);
+        }
+
+        async function triggerLookahead(pageNum) {
+            const rightPane = document.querySelector('.right-pane');
+            const lookaheadContainer = rightPane.querySelector('div:first-child');
+            lookaheadContainer.innerHTML = '<div style="padding:40px 20px; text-align:center;"><div class="spinner"></div><p style="color:var(--accent); font-family:\'Cinzel\', serif;">Consulting Oracle...</p></div>';
+            
+            try {
+                const page = await currentPdf.getPage(pageNum);
+                const textContent = await page.getTextContent();
+                const text = textContent.items.map(s => s.str).join(' ');
+                
+                const res = await fetch('/api/lookahead', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text: text, campaign_id: currentCampaignId })
+                });
+                const data = await res.json();
+                
+                if (data.entities && data.entities.length > 0) {
+                    let html = '<h3 style="color: var(--accent); font-family: \'Cinzel\', serif; margin:0 0 10px 0; border-bottom:1px solid var(--border); padding-bottom:5px;">Contextual Entities</h3>';
+                    data.entities.forEach(ent => {
+                        html += `
+                            <div style="margin-bottom: 15px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; border-left: 3px solid var(--accent);">
+                                <div style="font-weight: 600; color: var(--text-main); margin-bottom: 5px;">${ent.entity}</div>
+                                <div style="font-size: 12px; color: var(--text-muted);">${ent.snippet}</div>
+                                <div style="font-size: 10px; color: var(--accent); margin-top: 4px; text-align: right;">${ent.source}</div>
+                            </div>
+                        `;
+                    });
+                    lookaheadContainer.innerHTML = `<div style="padding: 20px; overflow-y: auto; height: 100%;">${html}</div>`;
+                    highlightEntities(data.entities.map(e => e.entity));
+                } else {
+                    lookaheadContainer.innerHTML = '<div style="padding:40px 20px; text-align:center; color:var(--text-muted);">No mechanical entities found on this page.</div>';
+                }
+            } catch(e) {
+                console.error(e);
+                lookaheadContainer.innerHTML = '<div style="padding:40px 20px; color:red; text-align:center;">Lookahead failed.</div>';
+            }
+        }
+
+        function highlightEntities(entities) {
+            if(!entities || entities.length === 0) return;
+            const textLayer = document.getElementById('textLayer');
+            if(!textLayer) return;
+            
+            const spans = textLayer.getElementsByTagName('span');
+            for(let span of spans) {
+                let txt = span.innerText || span.textContent;
+                let modified = false;
+                
+                entities.forEach(ent => {
+                    // escape regex chars in entity just in case
+                    const safeEnt = ent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = new RegExp(`(${safeEnt})`, 'gi');
+                    if (regex.test(txt)) {
+                        txt = txt.replace(regex, '<mark style="background: rgba(217, 119, 6, 0.4); color: transparent; border-radius: 3px; box-shadow: 0 0 8px var(--accent);">$1</mark>');
+                        modified = true;
+                    }
+                });
+                
+                if (modified) {
+                    span.innerHTML = txt;
+                }
+            }
+        }
+
+        // --- Chat ---
+        function appendMessage(text, role, sources=[]) {
+            const history = document.getElementById('chatHistory');
+            const div = document.createElement('div');
+            div.className = `message msg-${role}`;
+            
+            let html = `<p style="margin:0">${text.replace(/\n/g, '<br>')}</p>`;
+            if(sources.length > 0) {
+                const links = sources.map(s => `<a href="${s.url}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">[${s.name}]</a>`);
+                html += `<div class="sources"><b>Sources:</b><br>${links.join('<br>')}</div>`;
+            }
+            div.innerHTML = html;
+            history.appendChild(div);
+            history.scrollTop = history.scrollHeight;
+        }
+
+        async function askQuestion() {
+            const input = document.getElementById('searchBox');
+            const query = input.value;
+            if(!query) return;
+            
+            const apiKey = document.getElementById('apiKey').value;
+            const provider = document.getElementById('providerSelect').value;
+            
+            // --- IDIOT PROOFING GUARDRAIL ---
+            if(!apiKey && provider !== 'ollama') {
+                openSettings("⚠️ You must configure your API Key before you can ask a question.");
+                return;
+            }
+            
+            input.value = '';
+            appendMessage(query, 'user');
+            
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message msg-ai';
+            typingDiv.innerHTML = "<i>Consulting library...</i>";
+            document.getElementById('chatHistory').appendChild(typingDiv);
+            
+            try {
+                const res = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        question: query,
+                        provider: provider,
+                        api_key: apiKey,
+                        model: document.getElementById('modelName').value,
+                        campaign_id: currentCampaignId
+                    })
+                });
+                
+                typingDiv.remove();
+                const data = await res.json();
+                
+                if(res.ok) {
+                    appendMessage(data.answer, 'ai', data.sources);
+                } else {
+                    appendMessage(`Error: ${data.detail}`, 'ai');
+                }
+            } catch (e) {
+                typingDiv.remove();
+                appendMessage(`Connection failed. Server might be down.`, 'ai');
+            }
+        }
+    </script>
+</body>
+</html>

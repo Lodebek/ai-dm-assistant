@@ -1,0 +1,11 @@
+*.pdf
+*.epub
+*.db
+*.sqlite
+*.sqlite3
+__pycache__/
+*.por
+/uploads/
+/documents/
+venv/
+chroma_db/
